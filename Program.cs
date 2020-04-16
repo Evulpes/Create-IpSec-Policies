@@ -14,12 +14,27 @@ namespace Create_IpSec_Policies
 
         static void Main(string[] args)
         {
-            //Create a new filterlist and policy.
+
+            //netsh ipsec static add policy Example Policy
             IpSecPolicy.Policy policy = new IpSecPolicy.Policy("ExamplePolicy", "ExamplePolicyDescription");
+
+            //netsh ipsec static add filterlist ExampleFilterList
             IpSecPolicy.FilterList filterList = new IpSecPolicy.FilterList("ExampleFilterList", "ExampleFilterList Description");
+
+            //netsh ipsec static add filter filterlist=lag srcaddr=any dstaddr=any protocol=tcp dstport=8080
             IpSecPolicy.Filter filter = new IpSecPolicy.Filter(filterList);
+
+            //netsh ipsec static add filteraction ExampleLagAction action=block
             IpSecPolicy.FilterAction filterAction = new IpSecPolicy.FilterAction();
 
+            //netsh ipsec static add rule name=ExampleRule policy=ExamplePolicy filterlist=ExampleFilterList filteraction=ExampleLagAction
+            throw new NotImplementedException();
+
+            //netsh ipsec static set policy lag assign=y
+            throw new NotImplementedException();
+
+            //netsh ipsec static set policy lag assign=y
+            throw new NotImplementedException();
         }
     }
     public class IpSecPolicy
@@ -57,7 +72,7 @@ namespace Create_IpSec_Policies
                     0xac,0xaa,0x00,0x00,0x00,0x00
 
                 }).ToArray();
-                //byte 104 and 105 = port (big endian).
+                //byte 104 and 105 = port (little endian).
                 newIpsecData[104] = 0x90;
                 newIpsecData[105] = 0x1F;
                 fList.filterListSubKey.SetValue("ipsecData", newIpsecData, RegistryValueKind.Binary);
@@ -109,7 +124,6 @@ namespace Create_IpSec_Policies
             //Filterlist Registry Key Properties.
             public RegistryKey filterListSubKey;
 
-            //The data of ipsecData is of unknown purpose.
             public readonly string ipSecID = "{" + Guid.NewGuid().ToString() + "}";
             public string name = "ipsecFilter";
 
@@ -127,8 +141,6 @@ namespace Create_IpSec_Policies
                 //Populate the registry entries
                 CreateFilterListKey(filterName, filterDescription);
             }
-
-            //netsh ipsec static add filterlist filterListName
             public void CreateFilterListKey(string filterName, string filterDescription) =>
                 WriteRegistryEntries(filterListSubKey, new object[,]
                 {
@@ -183,7 +195,6 @@ namespace Create_IpSec_Policies
 
             }
 
-            //netsh ipsec static add policy policyName
             public void CreatePolicyKey(string policyName, string policyDescription) =>
                 WriteRegistryEntries(policySubKey, new object[,]
                 {
