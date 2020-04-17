@@ -28,8 +28,9 @@ namespace Create_IpSec_Policies
             IpSecPolicy.FilterAction filterAction = new IpSecPolicy.FilterAction();
 
             //netsh ipsec static add rule name=ExampleRule policy=ExamplePolicy filterlist=ExampleFilterList filteraction=ExampleLagAction
-            throw new NotImplementedException();
 
+            IpSecPolicy.Rule filterRule = new IpSecPolicy.Rule("ExampleRule",policy.ipsecNegPol, filterList, policy);
+            
             //netsh ipsec static set policy lag assign=y
             throw new NotImplementedException();
 
@@ -162,6 +163,7 @@ namespace Create_IpSec_Policies
         }
         public class Policy : IpSecPolicy
         {
+            public IpsecNegotiationPolicy ipsecNegPol;
             //Filterlist Registry Key Properties.
             public RegistryKey policySubKey;
 
@@ -189,7 +191,7 @@ namespace Create_IpSec_Policies
                 IpsecNFA ipsecNfaPolicy = new IpsecNFA(this);
                 ipsecNfaPolicy.CreateIpsecNFAKey();
 
-                IpsecNegotiationPolicy ipsecNegPol = new IpsecNegotiationPolicy(ipsecNfaPolicy);
+                ipsecNegPol = new IpsecNegotiationPolicy(ipsecNfaPolicy);
                 ipsecNegPol.CreateIpsecNegPolicy();
 
 
@@ -443,31 +445,52 @@ namespace Create_IpSec_Policies
             public readonly string ipSecID = "{" + Guid.NewGuid().ToString() + "}";
             public string name = "ipsecNFA";
 
-            public Rule()
+            public Rule(string ipsecName, Policy.IpsecNegotiationPolicy ipsecNegPol, FilterList ipsecFilterList, Policy ipsecPolicy)
             {
                 name += ipSecID;
 
                 IpSecStoreKey.CreateSubKey(name);
 
                 ruleSubKey = IpSecStoreKey.OpenSubKey(name, true);
+                CreateRuleKey(ipsecName, ipsecNegPol, ipsecFilterList, ipsecPolicy);
 
             }
-            public void CreateRuleKey(string ipsecName, Policy.IpsecNegotiationPolicy ipsecNegPol, FilterList ipsecFilterList, IpSecPolicy.Policy ipsecPolicy) =>
+            public void CreateRuleKey(string ipsecName, Policy.IpsecNegotiationPolicy ipsecNegPol, FilterList ipsecFilterList, IpSecPolicy.Policy ipsecPolicy)
+            {
                 WriteRegistryEntries(ruleSubKey, new object[,]
                 {
                     {"className", "ipsecNFA", RegistryValueKind.String},
                     {"ipsecData",  new byte[]
                     {
-   
+                        0x00,0xac,0xbb,0x11,0x8d,0x49,0xd1,0x11,
+                        0x86,0x39,0x00,0xa0,0x24,0x8d,0x30,0x21,
+                        0x2a,0x00,0x00,0x00,0x01,0x00,0x00,0x00,
+                        0x05,0x00,0x00,0x00,0x02,0x00,0x00,0x00,
+                        0x00,0x00,0xfd,0xff,0xff,0xff,0x02,0x00,
+                        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                        0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,
+                        0x02,0x00,0x00,0x00,0x00,0x00,0x01,0x01,
+                        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+                        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x00,
+                        0x00,0x00,0x05,0x00,0x00,0x00,0x00,0x00,
+                        0x00,0x00,0x01,0x01,0x01,0x01,0x01,0x01,
+                        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+                        0x01,0x02,0x01,0x00,0x00,0x00,0x00,0x00,
+                        0x00,0x00,0x00
                     }, RegistryValueKind.Binary },
                     {"ipsecDataType", IPSEC_DATA_TYPE_256, RegistryValueKind.DWord},
                     {"ipsecFilterReference", new string[] { ipsecFilterList.filterListSubKey.Name.Substring(ipsecFilterList.filterListSubKey.Name.IndexOf("\\")).Remove(0, 1) }, RegistryValueKind.MultiString },
                     {"ipsecID", ipSecID, RegistryValueKind.String },
                     {"ipsecName", ipsecName, RegistryValueKind.String },
-
-
- 
+                    {"ipsecNegotiationPolicyReference", ipsecNegPol.ipsecNegPolicyKey.Name.Substring(ipsecNegPol.ipsecNegPolicyKey.Name.IndexOf("\\")).Remove(0, 1), RegistryValueKind.String },
+                    {"ipsecOwnersReference", new string[] { ipsecPolicy.policySubKey.Name.Substring(ipsecPolicy.policySubKey.Name.IndexOf("\\")).Remove(0, 1) }, RegistryValueKind.MultiString },
+                    {"name", name, RegistryValueKind.String },
+                    {"whenChanged",  GetUnixTimeStamp(), RegistryValueKind.DWord}
                 });
+                ipsecFilterList.filterListSubKey.SetValue("ipsecOwnersReference", new string[] { ruleSubKey.Name.Substring(ruleSubKey.Name.IndexOf("\\")).Remove(0, 1) }, RegistryValueKind.MultiString);
+                ipsecPolicy.policySubKey.SetValue("ipsecNFAReference", new string[] { ruleSubKey.Name.Substring(ruleSubKey.Name.IndexOf("\\")).Remove(0, 1) }, RegistryValueKind.MultiString);
+            }
+
         }
         public static void WriteRegistryEntries(RegistryKey location, object[,] values)
         {
