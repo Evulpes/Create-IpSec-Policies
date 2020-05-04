@@ -59,6 +59,15 @@ namespace Create_IpSec_Policies
             /// <summary>
             /// 
             /// </summary>
+            /// <param name="hkeyHandle">An open handle to the policy store.</param>
+            /// <param name="activePolicyGuid">A pointer to the GUID of the Active Policy.</param>
+            /// <returns>A Windows Severity Code.</returns>
+            [DllImport("polstore", SetLastError = true)]
+            public static extern WinError.SeverityCode IPSecGetAssignedPolicyData(IntPtr hkeyHandle, out IntPtr activePolicyGuid);
+
+            /// <summary>
+            /// 
+            /// </summary>
             /// <param name="hostname">The hostname of the device to open the key on.</param>
             /// <param name="handleType">Appears to be the type of handle to open.</param>
             /// <param name="a3">Unknown.</param>
@@ -67,7 +76,15 @@ namespace Create_IpSec_Policies
             [DllImport("polstore", SetLastError = true)]
             public static extern WinError.SeverityCode IPSecOpenPolicyStore([MarshalAs(UnmanagedType.LPWStr)] string hostname, HandleType handleType, int a3, out IntPtr hkeyHandle);
 
- 
+            /// <summary>
+            /// 
+            /// </summary>
+            /// <param name="hkeyHandle">An open handle to the policy store.</param>
+            /// <param name="policyGuid">A pointer to the GUID of the active policy..</param>
+            /// <returns></returns>
+            [DllImport("polstore", SetLastError = true)]
+            public static extern WinError.SeverityCode IPSecUnassignPolicy(IntPtr hkeyHandle, IntPtr policyGuid);
+
             public enum HandleType : uint
             {
                 HKEY = 0x0,

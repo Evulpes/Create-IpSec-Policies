@@ -36,11 +36,13 @@ namespace Create_IpSec_Policies
 
 
             //netsh ipsec static set policy NAME_OF_POLICY assign=y
-            //Locate GUID for policy to assign
-            Polstore.IPSecAssignPolicy(policyHandle, Guid.NewGuid());
+            Polstore.IPSecAssignPolicy(policyHandle, Guid.NewGuid()); //Guid = policyguid
+
+            //netsh ipsec static show gpoassignedpolicy
+            Polstore.IPSecGetAssignedPolicyData(policyHandle, out IntPtr policyGuid);
 
             //netsh ipsec static set policy lag assign=n
-            throw new NotImplementedException();
+            Polstore.IPSecUnassignPolicy(policyHandle, policyGuid);
         }
     }
     public class IpSecPolicy
