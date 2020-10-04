@@ -26,7 +26,7 @@ namespace Create_IpSec_Policies
             }
 
 
-            if (GetFilterData(hPolicyStore, new Guid("56FB8D2D-7E61-40B5-B9A3-904C1F43AD5F"), out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData))
+            if (GetFilterData(hPolicyStore, new Guid("{bfb8400a-c1d9-4292-980b-ae3f1c1cd70c}"), out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData))
                 Console.WriteLine($"Failed to get filter data with error: {Marshal.GetLastWin32Error()}");
             
             else
@@ -35,7 +35,7 @@ namespace Create_IpSec_Policies
                 (
                     $"Filter Details:\n" +
                     $"Filter GUID:       {ipsecFilterData.filterIdentifier}\n" +
-                    $"Filter Specs Ptr:  0x{Marshal.ReadInt64(ipsecFilterData.filterSpecs):X}\n" +
+                    $"Filter Specs Ptr:  0x{ipsecFilterData.filterSpecs}\n" +
                     $"IPSec Description: {ipsecFilterData.ipsecDescription}\n" +
                     $"IPSec Name:        {ipsecFilterData.ipsecName}\n" +
                     $"Filter Specs:      {ipsecFilterData.numFilterSpecs}\n" +
@@ -43,8 +43,8 @@ namespace Create_IpSec_Policies
                 );
             }
 
-            int me = 5;
-            Console.WriteLine("hello");
+            WinError.SeverityCode testme =  hPolStoreLib.IPSecDeleteFilterData(hPolicyStore, new Guid("{bfb8400a-c1d9-4292-980b-ae3f1c1cd70c}"));
+
             Console.ReadLine();
         }
         private static bool OpenPolicyStore(out IntPtr hPolicyStore)

@@ -96,6 +96,7 @@ namespace Create_IpSec_Policies
         {
             private IntPtr hPolstore = Libloaderapi.LoadLibraryA(@"C:\Windows\System32\polstore.dll");
             private delegate WinError.SeverityCode IPSecGetFilterDataDelegate(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData);
+            private delegate WinError.SeverityCode IPSecDeleteFilterDataDelegate(IntPtr hPolicyStore, Guid filterIdentifier);
 
             #region imports
             [DllImport("polstore", SetLastError = true)]
@@ -103,6 +104,13 @@ namespace Create_IpSec_Policies
             #endregion
 
             #region methods
+            public WinError.SeverityCode IPSecDeleteFilterData(IntPtr hPolicyStore, Guid filterIdentifier)
+            {
+                if (hPolstore == IntPtr.Zero)
+                    return WinError.SeverityCode.ERROR_INVALID_HANDLE;
+                return ((IPSecDeleteFilterDataDelegate)Marshal.GetDelegateForFunctionPointer(hPolstore + (int)FunctionOffsets.IPSEC_DELETE_FILTER_DATA, typeof(IPSecDeleteFilterDataDelegate))).Invoke(hPolicyStore, filterIdentifier);
+
+            }
             public WinError.SeverityCode IPSecGetFilterData(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData)
             {
                 if (hPolstore == IntPtr.Zero)
@@ -137,6 +145,7 @@ namespace Create_IpSec_Policies
             #region enums
             public enum FunctionOffsets
             {
+                IPSEC_DELETE_FILTER_DATA = 0x25C10,
                 IPSEC_GET_FILTER_DATA = 0x26550,
             }
             public enum TypeOfStore : int
