@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Authentication.ExtendedProtection;
@@ -13,63 +14,57 @@ namespace Create_IpSec_Policies
 {
     class Program : NativeMethods
     {
-
-        static void Main(string[] args)
+        static readonly Polstore hPolStoreLib = new Polstore();
+        static unsafe void Main(string[] args)
         {
 
-            //netsh ipsec
-            Polstore.IPSecOpenPolicyStore(null, Polstore.HandleType.HKEY, 0, out IntPtr policyHandle);
+
+            if(OpenPolicyStore(out IntPtr hPolicyStore))
+            {
+                Console.WriteLine($"Failed to open policy store with error: {Marshal.GetLastWin32Error()}");
+                Environment.Exit(0);
+            }
 
 
-            //netsh ipsec static add policy Example Policy
+            if (GetFilterData(hPolicyStore, new Guid("56FB8D2D-7E61-40B5-B9A3-904C1F43AD5F"), out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData))
+                Console.WriteLine($"Failed to get filter data with error: {Marshal.GetLastWin32Error()}");
             
+            else
+            {
+                Console.WriteLine
+                (
+                    $"Filter Details:\n" +
+                    $"Filter GUID:       {ipsecFilterData.filterIdentifier}\n" +
+                    $"Filter Specs Ptr:  0x{Marshal.ReadInt64(ipsecFilterData.filterSpecs):X}\n" +
+                    $"IPSec Description: {ipsecFilterData.ipsecDescription}\n" +
+                    $"IPSec Name:        {ipsecFilterData.ipsecName}\n" +
+                    $"Filter Specs:      {ipsecFilterData.numFilterSpecs}\n" +
+                    $"When changed:      {ipsecFilterData.whenChanged:x}\n"
+                );
+            }
 
-            //netsh ipsec static add filterlist ExampleFilterList
-            Nshipsec.CreateNewFilterList(policyHandle, "ExampleFilterList", "ExampleFilterListDescription");
-
-            //netsh ipsec static add filter filterlist=lag srcaddr=any dstaddr=any protocol=tcp dstport=8080
-
-            //netsh ipsec static add filteraction ExampleLagAction action=block
-
-
-            //netsh ipsec static add rule name=ExampleRule policy=ExamplePolicy filterlist=ExampleFilterList filteraction=ExampleLagAction
-
-
-            //netsh ipsec static set policy NAME_OF_POLICY assign=y
-            Polstore.IPSecAssignPolicy(policyHandle, Guid.NewGuid()); //Guid = policyguid
-
-            //netsh ipsec static show gpoassignedpolicy
-            Polstore.IPSecGetAssignedPolicyData(policyHandle, out IntPtr policyGuid);
-
-            //netsh ipsec static set policy lag assign=n
-            Polstore.IPSecUnassignPolicy(policyHandle, policyGuid);
+            int me = 5;
+            Console.WriteLine("hello");
+            Console.ReadLine();
         }
-    }
-    public class IpSecPolicy
-    {
-        public const int IPSEC_DATA_TYPE_256 = 256;
-        public const string IPSEC_POLICY_STORE_REGISTRY_KEY = @"SOFTWARE\Policies\Microsoft\Windows\IPSec\Policy\Local\";
-
-        public static RegistryKey ipSecStoreKey = Registry.LocalMachine;
-
-        static IpSecPolicy() =>
-            ipSecStoreKey = ipSecStoreKey.OpenSubKey(IPSEC_POLICY_STORE_REGISTRY_KEY, true);
-
-        public class IpsecFilter
+        private static bool OpenPolicyStore(out IntPtr hPolicyStore)
         {
-            public RegistryKey ipsecFilterKey;
-            public Guid ipsecFilterGUID = Guid.NewGuid();
-
-
-
+            return Convert.ToBoolean(Polstore.IPSecOpenPolicyStore("", Polstore.TypeOfStore.IPSEC_REGISTRY_PROVIDER, "", out hPolicyStore));
         }
-
-        public static void WriteRegistryEntries(RegistryKey location, object[,] values)
+        private static bool GetFilterData(IntPtr hPolicyStore, Guid guid, out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData)
         {
-            for (int i = 0; i < values.GetLength(0); i++)
-                location.SetValue((string)values[i, 0], values[i,1], (RegistryValueKind)values[i ,2]);
+            IntPtr ipsecFilterDataPtr = Marshal.AllocHGlobal(0x8);
+            ipsecFilterData = new Polstore.Polstructs.IPSEC_FILTER_DATA();
+
+            Marshal.StructureToPtr(ipsecFilterData, ipsecFilterDataPtr, false);
+
+            if (Convert.ToBoolean(hPolStoreLib.IPSecGetFilterData(hPolicyStore, guid, ipsecFilterDataPtr)))
+                return true;
+
+            ipsecFilterData = (Polstore.Polstructs.IPSEC_FILTER_DATA)Marshal.PtrToStructure((IntPtr)Marshal.ReadInt64(ipsecFilterDataPtr), typeof(Polstore.Polstructs.IPSEC_FILTER_DATA));
+
+            return false;
         }
-        public static string GetUnixTimeStamp() => ((int)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds)).ToString();
     }
 
 }

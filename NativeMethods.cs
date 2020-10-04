@@ -6,95 +6,173 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Net;
 
+using IPAddr = System.UInt32;
+using IPMask = System.UInt32;
+using System.Data;
+using System.Diagnostics;
+
 namespace Create_IpSec_Policies
 {
     class NativeMethods
     {
-        public static class Libloaderapi
+        protected static class Handleapi
+        {
+            [DllImport("Kernel32", SetLastError = true)]
+            public static extern bool CloseHandle(IntPtr handle);
+            [DllImport("Kernel32", SetLastError = true)]
+            public static extern bool FreeLibrary(IntPtr hLibModule);
+        }
+        protected static class Ipsec
+        {
+            public struct IPSEC_FILTER
+            {
+                IPAddr SrcAddr;
+                IPMask SrcMask;
+                IPAddr DestAddr;
+                IPMask DestMask;
+                IPAddr TunnelAddr;
+                uint Protocol;
+                byte SrcPort;
+                byte DestPort;
+                bool TunnelFilter;
+                unsafe fixed char Pad[1];
+                ushort Flags;
+            }
+        }
+        protected static class Libloaderapi
         {
             [DllImport("Kernel32", SetLastError = true, CharSet = CharSet.Ansi)]
             public static extern IntPtr LoadLibraryA([MarshalAs(UnmanagedType.LPStr)]string lpFileName);
-
         }
-        public static class Nshipsec
+        protected class Nshipsec : IDisposable
         {
+            private IntPtr handle = Libloaderapi.LoadLibraryA(@"C:\Windows\System32\nshipsec.dll");
             private delegate WinError.SeverityCode CreateNewFilterListDelegate(IntPtr handle, [MarshalAs(UnmanagedType.LPWStr)] string name, [MarshalAs(UnmanagedType.LPWStr)] string desc);
 
-            /// <summary>
-            /// 
-            /// </summary>
-            /// <param name="policyStoreHandle"></param>
-            /// <param name="name"></param>
-            /// <param name="description"></param>
-            /// <returns></returns>
-            public static WinError.SeverityCode CreateNewFilterList(IntPtr policyStoreHandle, [MarshalAs(UnmanagedType.LPWStr)] string name, [MarshalAs(UnmanagedType.LPWStr)] string description)
+            public WinError.SeverityCode CreateNewFilterList(IntPtr policyStoreHandle, [MarshalAs(UnmanagedType.LPWStr)] string name, [MarshalAs(UnmanagedType.LPWStr)] string description)
             {
-
-                IntPtr handle = Libloaderapi.LoadLibraryA(@"C:\Windows\System32\nshipsec.dll");
-
                 if (handle == IntPtr.Zero)
                     return WinError.SeverityCode.ERROR_INVALID_HANDLE;
 
-                CreateNewFilterListDelegate function = (CreateNewFilterListDelegate)(Marshal.GetDelegateForFunctionPointer((handle + (int)FunctionOffsets.CREATE_FILTER_LIST_OFFSET), typeof(CreateNewFilterListDelegate)));
-
-                return function.Invoke(policyStoreHandle, name, description);
+                return ((CreateNewFilterListDelegate)Marshal.GetDelegateForFunctionPointer(handle + (int)FunctionOffsets.CREATE_FILTER_LIST_OFFSET, typeof(CreateNewFilterListDelegate))).Invoke(policyStoreHandle, name, description);
             }
             public enum FunctionOffsets
             {
+                //Pattern
+                //E8 CF 57 02 00
                 CREATE_FILTER_LIST_OFFSET = 0xF6B0,
             }
 
-        }
-        public static class Polstore
-        {
-            /// <summary>
-            /// 
-            /// </summary>
-            /// <param name="hkeyHandle">An open handle to the policy store.</param>
-            /// <param name="guid">The GUID of the policy to assign.</param>
-            /// <returns></returns>
-            [DllImport("polstore", SetLastError = true)]
-            public static extern WinError.SeverityCode IPSecAssignPolicy(IntPtr hkeyHandle, Guid guid);
+            #region IDisposable Support
+            private bool disposedValue = false;
 
-            /// <summary>
-            /// 
-            /// </summary>
-            /// <param name="hkeyHandle">An open handle to the policy store.</param>
-            /// <param name="activePolicyGuid">A pointer to the GUID of the Active Policy.</param>
-            /// <returns>A Windows Severity Code.</returns>
-            [DllImport("polstore", SetLastError = true)]
-            public static extern WinError.SeverityCode IPSecGetAssignedPolicyData(IntPtr hkeyHandle, out IntPtr activePolicyGuid);
-
-            /// <summary>
-            /// 
-            /// </summary>
-            /// <param name="hostname">The hostname of the device to open the key on.</param>
-            /// <param name="handleType">Appears to be the type of handle to open.</param>
-            /// <param name="a3">Unknown.</param>
-            /// <param name="hkeyHandle">A handle to the policy store.</param>
-            /// <returns></returns>
-            [DllImport("polstore", SetLastError = true)]
-            public static extern WinError.SeverityCode IPSecOpenPolicyStore([MarshalAs(UnmanagedType.LPWStr)] string hostname, HandleType handleType, int a3, out IntPtr hkeyHandle);
-
-            /// <summary>
-            /// 
-            /// </summary>
-            /// <param name="hkeyHandle">An open handle to the policy store.</param>
-            /// <param name="policyGuid">A pointer to the GUID of the active policy..</param>
-            /// <returns></returns>
-            [DllImport("polstore", SetLastError = true)]
-            public static extern WinError.SeverityCode IPSecUnassignPolicy(IntPtr hkeyHandle, IntPtr policyGuid);
-
-            public enum HandleType : uint
+            protected virtual void Dispose(bool disposing)
             {
-                HKEY = 0x0,
-                Unknown = 0x1,
-                ETWRegistration1 = 0x2,
-                ETWRegistration2 = 0x3,
-                ETWRegistration3 = 0x5,
+                if (!disposedValue)
+                {
+                    if (disposing)
+                    {
+                    }
+                    Handleapi.FreeLibrary(handle);
+                    handle = IntPtr.Zero;
 
+                    disposedValue = true;
+                }
+            }
+             ~Nshipsec()
+             {
+               Dispose(false);
+             }
+
+            public void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(true);
+            }
+            #endregion
+
+        }
+        protected class Polstore : IDisposable
+        {
+            private IntPtr hPolstore = Libloaderapi.LoadLibraryA(@"C:\Windows\System32\polstore.dll");
+            private delegate WinError.SeverityCode IPSecGetFilterDataDelegate(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData);
+
+            #region imports
+            [DllImport("polstore", SetLastError = true)]
+            public static extern WinError.SeverityCode IPSecOpenPolicyStore([MarshalAs(UnmanagedType.LPWStr)]string machineName, TypeOfStore typeOfStore, [MarshalAs(UnmanagedType.LPWStr)]string fileName, out IntPtr policyStoreHandle);
+            #endregion
+
+            #region methods
+            public WinError.SeverityCode IPSecGetFilterData(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData)
+            {
+                if (hPolstore == IntPtr.Zero)
+                    return WinError.SeverityCode.ERROR_INVALID_HANDLE;
+
+                return ((IPSecGetFilterDataDelegate)Marshal.GetDelegateForFunctionPointer(hPolstore + (int)FunctionOffsets.IPSEC_GET_FILTER_DATA, typeof(IPSecGetFilterDataDelegate))).Invoke(hPolicyStore, filterGuid, ppIpsecFilterData);
+            }
+            #endregion
+            #region classes
+            public static class Polstructs
+            {
+                public struct IPSEC_FILTER_SPEC
+                {
+                    [MarshalAs(UnmanagedType.LPWStr)] string srcDNSName;
+                    [MarshalAs(UnmanagedType.LPWStr)] string destDNSName;
+                    [MarshalAs(UnmanagedType.LPWStr)] string description;
+                    Guid filterSpecGUID;
+                    uint dwMirrorFlag;
+                    Ipsec.IPSEC_FILTER filter;
+                }
+                public struct IPSEC_FILTER_DATA
+                {
+                    public Guid filterIdentifier;
+                    public uint numFilterSpecs;
+                    public IntPtr filterSpecs; //PIPSEC_FILTER_SPEC * ppFilterSpecs;
+                    public uint whenChanged;
+                    [MarshalAs(UnmanagedType.LPWStr)] public string ipsecName;
+                    [MarshalAs(UnmanagedType.LPWStr)] public string ipsecDescription;
+                }
+            }
+            #endregion
+            #region enums
+            public enum FunctionOffsets
+            {
+                IPSEC_GET_FILTER_DATA = 0x26550,
+            }
+            public enum TypeOfStore : int
+            {
+                IPSEC_REGISTRY_PROVIDER = 0,
+                IPSEC_DIRECTORY_PROVIDER = 1,
+                IPSEC_FILE_PROVIDER = 2,
             }
 
+            #region IDisposable Support
+            private bool disposedValue = false;
+
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!disposedValue)
+                {
+                    if (disposing)
+                    {
+                    }
+                    Handleapi.FreeLibrary(hPolstore);
+                    hPolstore = IntPtr.Zero;
+                    disposedValue = true;
+                }
+            }
+
+             ~Polstore()
+             {
+               Dispose(false);
+             }
+            public void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+            #endregion
+            #endregion
         }
         public static class WinError
         {
@@ -107,7 +185,8 @@ namespace Create_IpSec_Policies
                 ERROR_INVALID_DATA = 0xD,
                 ERROR_OUTOFMEMORY = 0xE,
                 ERROR_INVALID_PARAMETER = 0x57,
-                The_Parameter_Is_Incorrect = 0x80070057,
+                ERROR_INVALUD_PARAMETER = 0x80070057,
+
             }
         }
     }
