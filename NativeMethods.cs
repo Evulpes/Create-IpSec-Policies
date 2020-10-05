@@ -98,9 +98,7 @@ namespace Create_IpSec_Policies
             private IntPtr hPolstore = Libloaderapi.LoadLibraryA(@"C:\Windows\System32\polstore.dll");
             public IntPtr hPolicyStore;
             #endregion
-            #region delegates
-            private delegate WinError.SeverityCode IPSecDeleteFilterDataDelegate(IntPtr hPolicyStore, Guid filterIdentifier);
-            #endregion
+
             #region imports
             [DllImport("polstore", SetLastError = true)]
             public static extern WinError.SeverityCode IPSecOpenPolicyStore([MarshalAs(UnmanagedType.LPWStr)]string machineName, TypeOfStore typeOfStore, [MarshalAs(UnmanagedType.LPWStr)]string fileName, out IntPtr policyStoreHandle);
@@ -128,6 +126,7 @@ namespace Create_IpSec_Policies
                 return IPSecDeleteFilterData(hPolicyStore, filterIdentifier);
             }
             #endregion
+
             #region classes
             public static class Polstructs
             {
@@ -151,6 +150,7 @@ namespace Create_IpSec_Policies
                 }
             }
             #endregion
+
             #region enums
             public enum TypeOfStore : int
             {
@@ -158,6 +158,7 @@ namespace Create_IpSec_Policies
                 IPSEC_DIRECTORY_PROVIDER = 1,
                 IPSEC_FILE_PROVIDER = 2,
             }
+            #endregion
 
             #region IDisposable Support
             private bool disposedValue = false;
@@ -186,7 +187,7 @@ namespace Create_IpSec_Policies
                 GC.SuppressFinalize(this);
             }
             #endregion
-            #endregion
+
         }
         public static class WinError
         {
