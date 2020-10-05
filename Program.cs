@@ -26,7 +26,7 @@ namespace Create_IpSec_Policies
             }
 
 
-            if (GetFilterData(hPolicyStore, new Guid("{bfb8400a-c1d9-4292-980b-ae3f1c1cd70c}"), out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData))
+            if (GetFilterData(hPolicyStore, new Guid("{628053c7-8e27-41a5-ba9f-bc8a61c1a91b}"), out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData))
                 Console.WriteLine($"Failed to get filter data with error: {Marshal.GetLastWin32Error()}");
             
             else
@@ -43,13 +43,20 @@ namespace Create_IpSec_Policies
                 );
             }
 
-            WinError.SeverityCode testme =  hPolStoreLib.IPSecDeleteFilterData(hPolicyStore, new Guid("{bfb8400a-c1d9-4292-980b-ae3f1c1cd70c}"));
+            if (DeleteFilterData(hPolicyStore, new Guid("{628053c7-8e27-41a5-ba9f-bc8a61c1a91b}")))
+                Console.WriteLine("Failed to delete policy");
+
+            hPolStoreLib.Dispose();
 
             Console.ReadLine();
         }
         private static bool OpenPolicyStore(out IntPtr hPolicyStore)
         {
             return Convert.ToBoolean(Polstore.IPSecOpenPolicyStore("", Polstore.TypeOfStore.IPSEC_REGISTRY_PROVIDER, "", out hPolicyStore));
+        }
+        private static bool DeleteFilterData(IntPtr hPolicyStore, Guid guid)
+        {
+            return Convert.ToBoolean(hPolStoreLib.IPSecDeleteFilterData(hPolicyStore, guid));
         }
         private static bool GetFilterData(IntPtr hPolicyStore, Guid guid, out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData)
         {
