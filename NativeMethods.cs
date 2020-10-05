@@ -94,29 +94,38 @@ namespace Create_IpSec_Policies
         }
         protected class Polstore : IDisposable
         {
+            #region variables
             private IntPtr hPolstore = Libloaderapi.LoadLibraryA(@"C:\Windows\System32\polstore.dll");
-            private delegate WinError.SeverityCode IPSecGetFilterDataDelegate(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData);
+            public IntPtr hPolicyStore;
+            #endregion
+            #region delegates
             private delegate WinError.SeverityCode IPSecDeleteFilterDataDelegate(IntPtr hPolicyStore, Guid filterIdentifier);
-
+            #endregion
             #region imports
             [DllImport("polstore", SetLastError = true)]
             public static extern WinError.SeverityCode IPSecOpenPolicyStore([MarshalAs(UnmanagedType.LPWStr)]string machineName, TypeOfStore typeOfStore, [MarshalAs(UnmanagedType.LPWStr)]string fileName, out IntPtr policyStoreHandle);
+            [DllImport("polstore", SetLastError = true)]
+            public static extern WinError.SeverityCode IPSecClosePolicyStore(IntPtr hPolicyStore);
+            [DllImport("polstore", SetLastError = true)]
+            private static extern WinError.SeverityCode IPSecGetFilterData(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData);
+            [DllImport("polstore", SetLastError = true)]
+            private static extern WinError.SeverityCode IPSecDeleteFilterData(IntPtr hPolicyStore, Guid filterIdentifier);
             #endregion
 
             #region methods
-            public WinError.SeverityCode IPSecDeleteFilterData(IntPtr hPolicyStore, Guid filterIdentifier)
-            {
+            public WinError.SeverityCode IPSecGetFilter(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData)
+            { 
                 if (hPolstore == IntPtr.Zero)
                     return WinError.SeverityCode.ERROR_INVALID_HANDLE;
-                return ((IPSecDeleteFilterDataDelegate)Marshal.GetDelegateForFunctionPointer(hPolstore + (int)FunctionOffsets.IPSEC_DELETE_FILTER_DATA, typeof(IPSecDeleteFilterDataDelegate))).Invoke(hPolicyStore, filterIdentifier);
 
+                return IPSecGetFilterData(hPolicyStore, filterGuid, ppIpsecFilterData);
             }
-            public WinError.SeverityCode IPSecGetFilterData(IntPtr hPolicyStore, Guid filterGuid, IntPtr ppIpsecFilterData)
+            public WinError.SeverityCode IPSecDeleteFilter(IntPtr hPolicyStore, Guid filterIdentifier)
             {
                 if (hPolstore == IntPtr.Zero)
                     return WinError.SeverityCode.ERROR_INVALID_HANDLE;
 
-                return ((IPSecGetFilterDataDelegate)Marshal.GetDelegateForFunctionPointer(hPolstore + (int)FunctionOffsets.IPSEC_GET_FILTER_DATA, typeof(IPSecGetFilterDataDelegate))).Invoke(hPolicyStore, filterGuid, ppIpsecFilterData);
+                return IPSecDeleteFilterData(hPolicyStore, filterIdentifier);
             }
             #endregion
             #region classes
@@ -143,11 +152,6 @@ namespace Create_IpSec_Policies
             }
             #endregion
             #region enums
-            public enum FunctionOffsets
-            {
-                IPSEC_DELETE_FILTER_DATA = 0x25C10,
-                IPSEC_GET_FILTER_DATA = 0x26550,
-            }
             public enum TypeOfStore : int
             {
                 IPSEC_REGISTRY_PROVIDER = 0,
@@ -167,6 +171,7 @@ namespace Create_IpSec_Policies
                     }
                     Handleapi.FreeLibrary(hPolstore);
                     hPolstore = IntPtr.Zero;
+                    IPSecClosePolicyStore(hPolicyStore);
                     disposedValue = true;
                 }
             }

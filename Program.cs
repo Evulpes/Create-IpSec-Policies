@@ -15,18 +15,18 @@ namespace Create_IpSec_Policies
     class Program : NativeMethods
     {
         static readonly Polstore hPolStoreLib = new Polstore();
-        static unsafe void Main(string[] args)
+        static void Main(string[] args)
         {
 
 
-            if(OpenPolicyStore(out IntPtr hPolicyStore))
+            if(OpenPolicyStore(out hPolStoreLib.hPolicyStore))
             {
                 Console.WriteLine($"Failed to open policy store with error: {Marshal.GetLastWin32Error()}");
                 Environment.Exit(0);
             }
 
 
-            if (GetFilterData(hPolicyStore, new Guid("{628053c7-8e27-41a5-ba9f-bc8a61c1a91b}"), out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData))
+            if (GetFilterData(hPolStoreLib.hPolicyStore, new Guid("{43a24ceb-e7ce-4b40-978f-9e0b6fd90d45}"), out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData))
                 Console.WriteLine($"Failed to get filter data with error: {Marshal.GetLastWin32Error()}");
             
             else
@@ -43,8 +43,10 @@ namespace Create_IpSec_Policies
                 );
             }
 
-            if (DeleteFilterData(hPolicyStore, new Guid("{628053c7-8e27-41a5-ba9f-bc8a61c1a91b}")))
-                Console.WriteLine("Failed to delete policy");
+            if (DeleteFilterData(hPolStoreLib.hPolicyStore, new Guid("{43a24ceb-e7ce-4b40-978f-9e0b6fd90d45}")))
+                Console.WriteLine("Failed to delete policy.");
+
+            Console.WriteLine("Policy Deleted");
 
             hPolStoreLib.Dispose();
 
@@ -54,9 +56,13 @@ namespace Create_IpSec_Policies
         {
             return Convert.ToBoolean(Polstore.IPSecOpenPolicyStore("", Polstore.TypeOfStore.IPSEC_REGISTRY_PROVIDER, "", out hPolicyStore));
         }
+        private static bool ClosePolicyStore(IntPtr hPolicyStore)
+        {
+            return Convert.ToBoolean(Polstore.IPSecClosePolicyStore(hPolicyStore));
+        }
         private static bool DeleteFilterData(IntPtr hPolicyStore, Guid guid)
         {
-            return Convert.ToBoolean(hPolStoreLib.IPSecDeleteFilterData(hPolicyStore, guid));
+            return Convert.ToBoolean(hPolStoreLib.IPSecDeleteFilter(hPolicyStore, guid));
         }
         private static bool GetFilterData(IntPtr hPolicyStore, Guid guid, out Polstore.Polstructs.IPSEC_FILTER_DATA ipsecFilterData)
         {
@@ -65,7 +71,7 @@ namespace Create_IpSec_Policies
 
             Marshal.StructureToPtr(ipsecFilterData, ipsecFilterDataPtr, false);
 
-            if (Convert.ToBoolean(hPolStoreLib.IPSecGetFilterData(hPolicyStore, guid, ipsecFilterDataPtr)))
+            if (Convert.ToBoolean(hPolStoreLib.IPSecGetFilter(hPolicyStore, guid, ipsecFilterDataPtr)))
                 return true;
 
             ipsecFilterData = (Polstore.Polstructs.IPSEC_FILTER_DATA)Marshal.PtrToStructure((IntPtr)Marshal.ReadInt64(ipsecFilterDataPtr), typeof(Polstore.Polstructs.IPSEC_FILTER_DATA));
