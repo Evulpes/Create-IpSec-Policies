@@ -1,4 +1,5 @@
-# IpSec-Extraction
+# Create IpSec Policies
+Superseeded by [IpSecDotNet5](https://github.com/Evulpes/IPSecDotNet5).
 ## Introduction - You Document Nothing, Jon Snow
 This is (currently) an ongoing project where I try to extract netsh ipsec commands from their relative DLLs and create a wrapper to use them. Currently, there is no documented way to create IPSec filters via .Net or C++ without calling on the Windows Shell or using the WFP. 
 As this is a progressive project, I have decided to do a write-up as I go, so when I come back to it I'm not lost in progress.
